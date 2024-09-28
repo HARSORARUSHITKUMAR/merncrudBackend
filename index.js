@@ -22,7 +22,7 @@ mongoose.connect(process.env.mongoURI, {
 app.get('/', (req, res) => {
     UserModel.find({})
         .then(users => res.json(users))
-        .catch(err => res.status(500).json(err));
+        .catch(err => res.status().json(err));
 });
 
 // Route to get a user by ID
