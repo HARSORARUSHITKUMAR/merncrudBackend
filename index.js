@@ -105,35 +105,10 @@ mongoose.connect(process.env.mongoURI, {
 
 // Route to get all users
 app.get('/', (req, res) => {
-    const limit = parseInt(req.query.limit) || 5; // Set default limit to 5
-        const page = parseInt(req.query.page) || 1; // Set default page to 1
     UserModel.find({})
-        .limit(limit)
-        .skip((page - 1) * limit)
         .then(users => res.json(users))
         .catch(err => res.status(500).json(err));
 });
-// app.get('/', async (req, res) => {
-//     try {
-//         const limit = parseInt(req.query.limit) || 5; // Set default limit to 5
-//         const page = parseInt(req.query.page) || 1; // Set default page to 1
-
-//         // const totalUsers = await UserModel.countDocuments(); // Count total documents
-//         const users = await UserModel.find({})
-//             .limit(limit)
-//             .skip((page - 1) * limit); // Skip the records for previous pages
-
-//         // res.json({
-//         //     totalUsers,
-//         //     totalPages: Math.ceil(totalUsers / limit),
-//         //     currentPage: page,
-//         //     users, // Return the paginated users
-//         // });
-//     } catch (err) {
-//         res.status(500).json(err);
-//     }
-// });
-
 
 // Route to create a new user
 app.post('/createUser', (req, res) => {
