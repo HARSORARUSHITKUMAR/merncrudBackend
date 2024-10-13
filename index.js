@@ -100,15 +100,37 @@ mongoose.connect(process.env.mongoURI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
-.then(() => console.log('Connected to MongoDB'))
-.catch((err) => console.error('MongoDB connection error:', err));
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((err) => console.error('MongoDB connection error:', err));
 
 // Route to get all users
-app.get('/', (req, res) => {
-    UserModel.find({})
-        .then(users => res.json(users))
-        .catch(err => res.status(500).json(err));
+// app.get('/', (req, res) => {
+//     UserModel.find({})
+//         .limit(5)
+//         .then(users => res.json(users))
+//         .catch(err => res.status(500).json(err));
+// });
+app.get('/', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 5; // Set default limit to 5
+        const page = parseInt(req.query.page) || 1; // Set default page to 1
+
+        const totalUsers = await UserModel.countDocuments(); // Count total documents
+        const users = await UserModel.find({})
+            .limit(limit)
+            .skip((page - 1) * limit); // Skip the records for previous pages
+
+        res.json({
+            totalUsers,
+            totalPages: Math.ceil(totalUsers / limit),
+            currentPage: page,
+            users, // Return the paginated users
+        });
+    } catch (err) {
+        res.status(500).json(err);
+    }
 });
+
 
 // Route to create a new user
 app.post('/createUser', (req, res) => {
@@ -182,13 +204,33 @@ app.post('/api/importCsv', upload.single('file'), (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded');
     }
+    if (req.file.size === 0) {
+        return res.status(400).send('Please enter valid data');
+    }
 
     fs.createReadStream(req.file.path)
         .pipe(csvParser())
-        .on('data', (data) => results.push(data))
+        .on('data', (data) => {
+            // Normalize header names
+            const normalizedData = {
+                name: data.name || data.Name,
+                email: data.email || data.Email,
+                age: data.age || data.Age,
+            };
+            results.push(normalizedData);
+        })
         .on('end', async () => {
             try {
-                await UserModel.insertMany(results);
+                // Check if results is empty or contains only empty fields
+                const validResults = results.filter(row => {
+                    return row.name && row.email && row.age; // All fields must be non-empty
+                });
+
+                if (validResults.length === 0) {
+                    return res.status(400).send('Please enter valid data');
+                }
+
+                await UserModel.insertMany(validResults); // Insert only valid results
                 res.send('CSV data imported successfully');
             } catch (error) {
                 console.error('Error importing CSV data:', error);
@@ -200,6 +242,7 @@ app.post('/api/importCsv', upload.single('file'), (req, res) => {
             }
         });
 });
+
 
 // Start the server
 const PORT = process.env.PORT || 3001;
